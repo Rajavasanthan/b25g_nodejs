@@ -2,8 +2,10 @@ const express = require("express");
 const app = express();
 const cors = require('cors');
 const mongodb = require("mongodb");
+const bcryptjs = require("bcryptjs");
 const mongoClient = mongodb.MongoClient;
-const url = "mongodb+srv://vasanth:admin123@cluster0.9v1ks.mongodb.net?retryWrites=true&w=majority";
+// const url = "mongodb+srv://vasanth:admin123@cluster0.9v1ks.mongodb.net?retryWrites=true&w=majority";
+const url = "mongodb://localhost:27017";
 const PORT = process.env.PORT || 3000
 app.use(cors({
     origin: "*"
@@ -12,6 +14,78 @@ app.use(cors({
 app.use(express.json());
 
 // let tasks = []
+
+app.post("/register", async function (req, res) {
+    try {
+        // Connect the Database
+        let client = await mongoClient.connect(url)
+
+        // Select the DB
+        let db = client.db("todo_app");
+
+        // Hash the password
+        let salt = bcryptjs.genSaltSync(10);
+        let hash = bcryptjs.hashSync(req.body.password, salt)
+        req.body.password = hash;
+
+        // Select the Collection and perform the action
+        let data = await db.collection("users").insertOne(req.body)
+
+        // Close the Connection
+        await client.close();
+
+        res.json({
+            message: "User Registered",
+            id: data._id
+        })
+    } catch (error) {
+
+    }
+})
+
+
+app.post("/login", async function (req,res) {
+    try {
+        // Connect the Database
+        let client = await mongoClient.connect(url)
+
+        // Select the DB
+        let db = client.db("todo_app");
+
+        // Find the user with email_id
+        let user = await db.collection("users").findOne({ username: req.body.username });
+
+        if (user) {
+            // Hash the incoming password
+            // Compare that password with user's password
+            console.log(req.body)
+            console.log(user.password)
+            let matchPassword = bcryptjs.compareSync(req.body.password,user.password)
+            if(matchPassword){
+                // Generate JWT token
+                res.json({
+                    message : true
+                })
+            }else{
+                res.status(404).json({
+                    message : "Username/Password is incorrect"
+                })
+            }
+            // if both are correct then allow them
+        } else {
+            res.status(404).json({
+                message: "Username/Password is incorrect"
+            })
+        }
+
+
+
+
+
+    } catch (error) {
+        console.log(error)
+    }
+})
 
 app.get("/list-all-todo", async function (req, res) {
     try {
@@ -30,7 +104,7 @@ app.get("/list-all-todo", async function (req, res) {
         res.json(data)
     } catch (error) {
         res.status(500).json({
-            message : "Something went wrong"
+            message: "Something went wrong"
         })
     }
 })
@@ -50,11 +124,11 @@ app.post("/create-task", async function (req, res) {
         await client.close();
 
         res.json({
-            message : "Task Created"
+            message: "Task Created"
         })
     } catch (error) {
         res.status(500).json({
-            message : "Something went wrong"
+            message: "Something went wrong"
         })
     }
 
@@ -63,24 +137,24 @@ app.post("/create-task", async function (req, res) {
 app.put("/update-task/:id", async function (req, res) {
     try {
         // Connect the Database
-    let client = await mongoClient.connect(url)
+        let client = await mongoClient.connect(url)
 
-    // Select the DB
-    let db = client.db("todo_app")
+        // Select the DB
+        let db = client.db("todo_app")
 
-    // Select the Collection and perform the action
-    let data = await db.collection("tasks")
-                .findOneAndUpdate({_id : mongodb.ObjectId(req.params.id)},{$set : req.body})
+        // Select the Collection and perform the action
+        let data = await db.collection("tasks")
+            .findOneAndUpdate({ _id: mongodb.ObjectId(req.params.id) }, { $set: req.body })
 
-    // Close the Connection
-    await client.close();
+        // Close the Connection
+        await client.close();
 
-    res.json({
-        message : "Task Updated"
-    })
+        res.json({
+            message: "Task Updated"
+        })
     } catch (error) {
         res.status(500).json({
-            message : "Something Went Wrong"
+            message: "Something Went Wrong"
         })
     }
 })
@@ -88,24 +162,24 @@ app.put("/update-task/:id", async function (req, res) {
 app.delete("/delete-task/:id", async function (req, res) {
     try {
         // Connect the Database
-    let client = await mongoClient.connect(url)
+        let client = await mongoClient.connect(url)
 
-    // Select the DB
-    let db = client.db("todo_app")
+        // Select the DB
+        let db = client.db("todo_app")
 
-    // Select the Collection and perform the action
-    let data = await db.collection("tasks")
-                .findOneAndDelete({_id : mongodb.ObjectId(req.params.id)})
+        // Select the Collection and perform the action
+        let data = await db.collection("tasks")
+            .findOneAndDelete({ _id: mongodb.ObjectId(req.params.id) })
 
-    // Close the Connection
-    await client.close();
+        // Close the Connection
+        await client.close();
 
-    res.json({
-        message : "Task Deleted"
-    })
+        res.json({
+            message: "Task Deleted"
+        })
     } catch (error) {
         res.status(500).json({
-            message : "Something Went Wrong"
+            message: "Something Went Wrong"
         })
     }
 })
