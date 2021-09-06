@@ -7,7 +7,6 @@ const jwt = require("jsonwebtoken");
 const mongoClient = mongodb.MongoClient;
 const dotenv = require("dotenv")
 dotenv.config();
-console.log(process.env)
 // const url = "mongodb+srv://vasanth:admin123@cluster0.9v1ks.mongodb.net?retryWrites=true&w=majority";
 const url = process.env.DB;
 const PORT = process.env.PORT || 3000;
@@ -29,6 +28,7 @@ function authenticate(req, res, next) {
                 })
             }else{
                 console.log(decoded)
+                req.userid = decoded.id;
             next()
             }
             
@@ -133,7 +133,7 @@ app.get("/list-all-todo",[authenticate], async function (req, res) {
         let db = client.db("todo_app");
 
         // Select the collection and perform action
-        let data = await db.collection("tasks").find({}).toArray();
+        let data = await db.collection("tasks").find({userid : req.userid}).toArray();
 
         // Close the Connection
         client.close();
@@ -155,6 +155,8 @@ app.post("/create-task",[authenticate], async function (req, res) {
         let db = client.db("todo_app")
 
         // Select the Collection and perform the action
+        req.body.userid = req.userid;
+        console.log(req.body)
         let data = await db.collection("tasks").insertOne(req.body)
 
         // Close the Connection
@@ -164,6 +166,7 @@ app.post("/create-task",[authenticate], async function (req, res) {
             message: "Task Created"
         })
     } catch (error) {
+        console.log(error)
         res.status(500).json({
             message: "Something went wrong"
         })
