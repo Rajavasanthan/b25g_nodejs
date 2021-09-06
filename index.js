@@ -3,15 +3,50 @@ const app = express();
 const cors = require('cors');
 const mongodb = require("mongodb");
 const bcryptjs = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const mongoClient = mongodb.MongoClient;
+const dotenv = require("dotenv")
+dotenv.config();
+console.log(process.env)
 // const url = "mongodb+srv://vasanth:admin123@cluster0.9v1ks.mongodb.net?retryWrites=true&w=majority";
-const url = "mongodb://localhost:27017";
-const PORT = process.env.PORT || 3000
+const url = process.env.DB;
+const PORT = process.env.PORT || 3000;
 app.use(cors({
     origin: "*"
 }))
 
 app.use(express.json());
+
+function authenticate(req, res, next) {
+    try {
+    // Check if the token is present
+    // if present -> check if it is valid
+    if(req.headers.authorization){
+        jwt.verify(req.headers.authorization,process.env.JWT_SECRET,function(error,decoded){
+            if(error){
+                res.status(500).json({
+                    message: "Unauthorized"
+                })
+            }else{
+                console.log(decoded)
+            next()
+            }
+            
+        });
+      
+    }else{
+        res.status(401).json({
+            message: "No Token Present"
+        })
+    }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({
+            message: "Internal Server Error"
+        })
+    }
+    
+}
 
 // let tasks = []
 
@@ -44,7 +79,7 @@ app.post("/register", async function (req, res) {
 })
 
 
-app.post("/login", async function (req,res) {
+app.post("/login", async function (req, res) {
     try {
         // Connect the Database
         let client = await mongoClient.connect(url)
@@ -60,15 +95,17 @@ app.post("/login", async function (req,res) {
             // Compare that password with user's password
             console.log(req.body)
             console.log(user.password)
-            let matchPassword = bcryptjs.compareSync(req.body.password,user.password)
-            if(matchPassword){
+            let matchPassword = bcryptjs.compareSync(req.body.password, user.password)
+            if (matchPassword) {
                 // Generate JWT token
+                let token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
                 res.json({
-                    message : true
+                    message: true,
+                    token
                 })
-            }else{
+            } else {
                 res.status(404).json({
-                    message : "Username/Password is incorrect"
+                    message: "Username/Password is incorrect"
                 })
             }
             // if both are correct then allow them
@@ -87,7 +124,7 @@ app.post("/login", async function (req,res) {
     }
 })
 
-app.get("/list-all-todo", async function (req, res) {
+app.get("/list-all-todo",[authenticate], async function (req, res) {
     try {
         // Connect the Database
         let client = await mongoClient.connect(url)
@@ -109,7 +146,7 @@ app.get("/list-all-todo", async function (req, res) {
     }
 })
 
-app.post("/create-task", async function (req, res) {
+app.post("/create-task",[authenticate], async function (req, res) {
     try {
         // Connect the Database
         let client = await mongoClient.connect(url)
@@ -134,7 +171,7 @@ app.post("/create-task", async function (req, res) {
 
 })
 
-app.put("/update-task/:id", async function (req, res) {
+app.put("/update-task/:id",[authenticate], async function (req, res) {
     try {
         // Connect the Database
         let client = await mongoClient.connect(url)
@@ -159,7 +196,7 @@ app.put("/update-task/:id", async function (req, res) {
     }
 })
 
-app.delete("/delete-task/:id", async function (req, res) {
+app.delete("/delete-task/:id",[authenticate], async function (req, res) {
     try {
         // Connect the Database
         let client = await mongoClient.connect(url)
@@ -182,6 +219,12 @@ app.delete("/delete-task/:id", async function (req, res) {
             message: "Something Went Wrong"
         })
     }
+})
+
+app.get("/dashboard", [authenticate], async (req, res) => {
+    res.json({
+        message: "Protected Data"
+    })
 })
 
 app.listen(PORT, function () {
